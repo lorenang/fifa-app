@@ -1,0 +1,34 @@
+Instalar Sequelize (en tu contenedor api)
+
+usando el compose donde api es la imagen de docker y el código está montado en ./api.
+
+# Entrar al servicio api
+docker compose exec api bash -lc "
+  cd /workspace/api && \
+  npm i sequelize mysql2 express-validator cors helmet && \
+  npm i -D nodemon && \
+  npm pkg set scripts.dev='nodemon server.js'
+"
+
+
+--probar
+docker compose up -d
+curl "http://localhost:3000/players?limit=5"
+curl "http://localhost:3000/players?club=Barcelona&position=RW&year=2015&limit=10"
+curl -I "http://localhost:3000/players/export.csv?club=Barcelona&year=2015"
+
+
+Exportar XLSX (parte del enunciado)
+Instalar exceljs:
+docker compose exec api bash -lc "cd /workspace/api && npm i exceljs"
+
+
+Índices recomendados (para mejorar los filtros)
+docker compose exec db bash -lc '
+mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE" -e "
+  CREATE INDEX IF NOT EXISTS idx_players_name ON players (long_name);
+  CREATE INDEX IF NOT EXISTS idx_players_club ON players (club_name);
+  CREATE INDEX IF NOT EXISTS idx_players_pos ON players (player_positions);
+  CREATE INDEX IF NOT EXISTS idx_players_year ON players (fifa_version);
+  CREATE INDEX IF NOT EXISTS idx_players_overall ON players (overall);
+"'

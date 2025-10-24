@@ -3,7 +3,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 const { Op } = require('sequelize');
 const { sequelize } = require('./db');
-const { Player } = require('./models/player');
+const Player = require('./models/player');
+
+
 
 const app = express();
 app.use(helmet());
@@ -95,10 +97,6 @@ app.get('/players/:id', async (req, res) => {
     }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`API listening on :${PORT}`));
-
-
 const ExcelJS = require('exceljs');
 
 app.get('/players/export.xlsx', async (req, res) => {
@@ -136,10 +134,103 @@ app.get('/players/export.xlsx', async (req, res) => {
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', 'attachment; filename=\"players.xlsx\""');
-    await wb.xlsx.write(res);
+        await wb.xlsx.write(res);
         res.end();
     } catch (e) {
         console.error(e);
         res.status(500).json({ message: 'Error exporting XLSX' });
     }
 });
+
+
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
+
+// usuario demo (en real usarías tabla users)
+const DEMO_USER = {
+    id: 1,
+    email: 'admin@example.com',
+    // password: admin123 (hash)
+    passwordHash: bcrypt.hashSync('admin123', 10),
+    name: 'Admin'
+};
+
+function signToken(payload) { return jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' }); }
+
+function requireAuth(req, res, next) {
+    const h = req.headers.authorization || '';
+    const token = h.startsWith('Bearer ') ? h.slice(7) : null;
+    if (!token) return res.status(401).json({ message: 'Unauthorized' });
+    try {
+        req.user = jwt.verify(token, JWT_SECRET);
+        return next();
+    } catch {
+        return res.status(401).json({ message: 'Unauthorized' });
+    }
+}
+
+// Login
+app.post('/auth/login', express.json(), async (req, res) => {
+    const { email, password } = req.body || {};
+    if (!email || !password) return res.status(400).json({ message: 'email & password required' });
+    if (email !== DEMO_USER.email) return res.status(401).json({ message: 'Invalid credentials' });
+    const ok = await bcrypt.compare(password, DEMO_USER.passwordHash);
+    if (!ok) return res.status(401).json({ message: 'Invalid credentials' });
+    const token = signToken({ sub: DEMO_USER.id, email: DEMO_USER.email, name: DEMO_USER.name });
+    res.json({ token, user: { id: DEMO_USER.id, email: DEMO_USER.email, name: DEMO_USER.name } });
+});
+
+
+// aplica a todo lo que sigue:
+app.use(requireAuth);
+
+const { body, validationResult } = require('express-validator');
+
+const validate = (rules) => [
+    ...rules,
+    (req, res, next) => { const errors = validationResult(req); if (!errors.isEmpty()) { return res.status(422).json({ errors: errors.array() }); } next(); }
+];
+
+app.put('/players/:id', validate([
+    body('long_name').optional().isString().isLength({ min: 1, max: 255 }),
+    body('player_positions').optional().isString().isLength({ min: 1, max: 255 }),
+    body('club_name').optional().isString().isLength({ max: 255 }),
+    body('nationality_name').optional().isString().isLength({ max: 255 }),
+    body('overall').optional().isInt({ min: 0, max: 99 }),
+    body('pace').optional().isInt({ min: 0, max: 99 }),
+    body('shooting').optional().isInt({ min: 0, max: 99 }),
+    body('passing').optional().isInt({ min: 0, max: 99 }),
+    body('dribbling').optional().isInt({ min: 0, max: 99 }),
+    body('defending').optional().isInt({ min: 0, max: 99 }),
+    body('physic').optional().isInt({ min: 0, max: 99 })
+]), async (req, res) => {
+    const p = await Player.findByPk(req.params.id);
+    if (!p) return res.status(404).json({ message: 'Not found' });
+    await p.update(req.body);
+    res.json(p);
+});
+
+app.post('/players', validate([
+    body('long_name').isString().isLength({ min: 1, max: 255 }),
+    body('player_positions').isString().isLength({ min: 1, max: 255 }),
+    body('club_name').optional().isString(),
+    body('nationality_name').optional().isString(),
+    body('overall').isInt({ min: 0, max: 99 }),
+    body('pace').isInt({ min: 0, max: 99 }),
+    body('shooting').isInt({ min: 0, max: 99 }),
+    body('passing').isInt({ min: 0, max: 99 }),
+    body('dribbling').isInt({ min: 0, max: 99 }),
+    body('defending').isInt({ min: 0, max: 99 }),
+    body('physic').isInt({ min: 0, max: 99 }),
+    body('fifa_version').optional().isString()
+]), async (req, res) => {
+    const payload = { fifa_version: req.body.fifa_version || '2023', ...req.body };
+    const created = await Player.create(payload);
+    res.status(201).json(created);
+});
+
+const PORT = process.env.PORT || 3000;
+const HOST = '0.0.0.0';
+app.listen(PORT, HOST, () => console.log(`API listening on ${HOST}:${PORT}`));

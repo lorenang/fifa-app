@@ -1,0 +1,84 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: fifa_db
+    command:
+      ["--default-authentication-plugin=mysql_native_password", "--sql_mode="]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS:-root}
+      MYSQL_DATABASE: ${DB_NAME:-fifa_local}
+      MYSQL_USER: ${DB_USER:-fifa}
+      MYSQL_PASSWORD: ${DB_PASS:-fifa}
+    ports:
+      - "3306:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+      - ./_mysql-init:/docker-entrypoint-initdb.d:ro # .sql iniciales (opcional)
+    healthcheck:
+      test:
+        ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASS:-fifa}"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  adminer:
+    image: adminer:latest
+    container_name: fifa_adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+  api:
+    image: lngomez/angular-nodejs-mysql:latest
+    container_name: fifa_api_dev
+    working_dir: /workspace/api
+    volumes:
+      - ./api:/workspace/api
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-fifa_local}
+      DB_USER: ${DB_USER:-fifa}
+      DB_PASS: ${DB_PASS:-fifa}
+    command: bash -lc "npm run dev || bash"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: lngomez/angular-nodejs-mysql:latest
+    container_name: fifa_web_dev
+    working_dir: /workspace/web
+    volumes:
+      - ./web:/workspace/web
+    ports:
+      - "4200:4200"
+    environment:
+      NODE_ENV: development
+    command: bash -lc "npm run start || bash"
+    depends_on:
+      - api
+
+volumes:
+  dbdata:
+#version: "3.8"
+
+#services:
+#  api:
+#    image: lngomez/angular-nodejs-mysql:latest
+#    container_name: fifa_api_dev
+#    working_dir: /workspace/api
+#    volumes:
+#      - ./api:/workspace/api
+#    ports:
+#      - "3000:3000"
+#    environment:
+#      NODE_ENV: development
+#      PORT: 3000
+#      DEBUG: "api:*"
+#    command: bash -lc "npm run dev || bash"

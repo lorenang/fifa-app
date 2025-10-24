@@ -17,4 +17,4 @@ const Player = sequelize.define('Player', {
   physic: DataTypes.INTEGER
 }, { tableName: 'players', timestamps: false });
 
-module.exports = { Player };
+module.exports = Player ;

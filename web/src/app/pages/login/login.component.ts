@@ -15,16 +15,18 @@ import { CommonModule } from '@angular/common';
       <input [(ngModel)]="password" name="password" type="password" placeholder="Password" required>
       <button type="submit">Entrar</button>
     </form>
-    <small>Demo: admin@example.com / admin123</small>
+    <small>Demo: admin&#64;example.com / admin123</small>
   `
 })
-
 export class LoginComponent {
   email='admin@example.com'; password='admin123';
   constructor(private auth:AuthService, private router:Router){}
   submit(){
     this.auth.login(this.email,this.password).subscribe({
-      next:(r)=>{ localStorage.setItem('token', r.token); this.router.navigate(['/players']); },
+      next:(r: {token:string}) => {
+        localStorage.setItem('token', r.token);
+        this.router.navigate(['/players']);
+      },
       error:()=> alert('Credenciales inválidas')
     });
   }

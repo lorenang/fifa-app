@@ -7,11 +7,11 @@ import { PlayerFormComponent } from './pages/player-form/player-form.component';
 import { authGuard } from './core/auth.guard';
 
 export const routes: Routes = [
-  { path: 'login', component: LoginComponent },                  // pública
-  { path: 'players', component: PlayersListComponent },          // pública
-  { path: 'players/:id', component: PlayerDetailComponent },     // pública
-  { path: 'admin/new', component: PlayerFormComponent, canActivate: [authGuard] },      // protegida
-  { path: 'admin/edit/:id', component: PlayerFormComponent, canActivate: [authGuard] }, // protegida
-  { path: '', pathMatch: 'full', redirectTo: 'players' },        // default
-  { path: '**', redirectTo: 'players' }                          // comodín
+  { path: 'login', component: LoginComponent },
+  { path: 'players', component: PlayersListComponent },
+  { path: 'players/:id', component: PlayerDetailComponent },
+  { path: 'admin/new', component: PlayerFormComponent, canActivate: [authGuard] },
+  { path: 'admin/edit/:id', component: PlayerFormComponent, canActivate: [authGuard] },
+  { path: '', pathMatch: 'full', redirectTo: 'players' },
+  { path: '**', redirectTo: 'players' }
 ];

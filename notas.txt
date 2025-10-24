@@ -32,3 +32,27 @@ mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE" -e "
   CREATE INDEX IF NOT EXISTS idx_players_year ON players (fifa_version);
   CREATE INDEX IF NOT EXISTS idx_players_overall ON players (overall);
 "'
+
+# dentro del contenedor web
+docker compose exec web bash -lc "cd /workspace/web \
+  && npm i chart.js ng2-charts jwt-decode \
+  && npm i @angular/forms @angular/router"
+
+
+
+# reiniciar API
+docker compose restart api
+docker compose logs -f api
+
+# públicas
+curl -s http://localhost:3000/health
+curl -s "http://localhost:3000/players?limit=5" | jq '.meta, .data[0]'
+
+# login
+TOKEN=$(curl -s -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"admin123"}' | jq -r .token)
+
+# protegidas
+curl -I -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:3000/players/export.xlsx?club=Barcelona&year=2015"
